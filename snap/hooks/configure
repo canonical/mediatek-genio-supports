@@ -1,0 +1,32 @@
+#!/bin/sh
+
+set -e
+
+interfaces="hardware-observe mediatek-accel process-control"
+
+all_if_connected=true
+for if_name in $interfaces; do
+    if ! snapctl is-connected $if_name; then
+        if [ $all_if_connected = true ]; then
+            echo "Please run this command to connect interfaces:"
+            all_if_connected=false
+        fi
+        echo "sudo snap connect ${SNAP_NAME}:${if_name}"
+    fi
+done
+
+if [ $all_if_connected = false ]; then
+    exit 0
+fi
+
+if python3 -m mediatek-genio-supports mdpd --check; then
+    snapctl start mediatek-genio-supports.mdpd --enable
+else
+    snapctl stop mediatek-genio-supports.mdpd --disable
+fi
+
+if python3 -m mediatek-genio-supports vpud --check; then
+    snapctl start mediatek-genio-supports.vpud --enable
+else
+    snapctl stop mediatek-genio-supports.vpud --disable
+fi

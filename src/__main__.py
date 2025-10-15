@@ -15,20 +15,34 @@
 #
 import argparse
 import sys
+import os
 from typing import List
 from .daemon import Daemon
 
+SNAP_NAME = os.environ["SNAP_NAME"]
+
+def hardware_list():
+    with open("/proc/device-tree/compatible", "rb") as f:
+        return set([s.decode("ASCII") for s in f.read().split(b"\0") if s != b''])
+
 
 def detect_hardware(candidates: List[str]):
-    with open("/proc/device-tree/compatible", "rb") as f:
-        compatible_list = set([s.decode("ASCII") for s in f.read().split(b"\0")])
+    try:
+        all_hw = hardware_list()
+    except PermissionError:
+        print("Insufficient permissions to detect hardware models. Please run this command to fix this problem:", file=sys.stderr)
+        print(f"sudo snap connect {SNAP_NAME}:hardware-observe", file=sys.stderr)
+        sys.exit(1)
 
-    for comp in compatible_list:
+    for comp in all_hw:
         for cand in candidates:
             if comp == f"mediatek,{cand}":
                 return cand
     return None
 
+
+def print_hardware():
+    print(hardware_list())
 
 
 def run_daemon(args, name, hw_variants):
@@ -40,24 +54,36 @@ def run_daemon(args, name, hw_variants):
             sys.exit(0)
 
     if hw is None:
-        raise RuntimeError("This daemon is not applicable for this device")
+        print("This daemon is not applicable for this device", file=sys.stderr)
+        sys.exit(1)
 
     return Daemon(name, hw).run()
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
     mdpd_parser = subparsers.add_parser("mdpd")
-    mdpd_parser.add_argument("--check", type=bool, help="Check if this daemon is applicable on this device and exit.")
+    mdpd_parser.add_argument(
+        "--check",
+        action='store_true',
+        help="Check if this daemon is applicable on this device and exit.",
+    )
     mdpd_parser.set_defaults(func=lambda args: run_daemon(args, "mdpd", ["mt8365"]))
 
     vpud_parser = subparsers.add_parser("vpud")
-    vpud_parser.add_argument("--check", type=bool, help="Check if this daemon is applicable on this device and exit.")
-    vpud_parser.set_defaults(func=lambda args: run_daemon(args, "vpud", ["mt8365", "mt8188", "mt8395"]))
+    vpud_parser.add_argument(
+        "--check",
+        action='store_true',
+        help="Check if this daemon is applicable on this device and exit.",
+    )
+    vpud_parser.set_defaults(
+        func=lambda args: run_daemon(args, "vpud", ["mt8365", "mt8188", "mt8395"])
+    )
 
     hardware_probe_parser = subparsers.add_parser("probe")
-    hardware_probe_parser.set_defaults(func=lambda: print(detect_hardware()))
+    hardware_probe_parser.set_defaults(func=lambda _: print_hardware())
 
     return parser.parse_args()
 

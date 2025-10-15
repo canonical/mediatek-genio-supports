@@ -1,9 +1,12 @@
 #!/bin/sh
-
+# This script is used to control the starting and stopping of the daemon.
+# Daemons will be automatically started only when all required interfaces are
+# connected and running on supported devices. This script prevents the daemon
+# from starting incorrectly and generating excessive error logs.
 set -e
 
 interfaces="hardware-observe mediatek-accel process-control"
-
+disconnected_ifs=""
 all_if_connected=true
 for if_name in $interfaces; do
     if ! snapctl is-connected $if_name; then
@@ -12,12 +15,19 @@ for if_name in $interfaces; do
             all_if_connected=false
         fi
         echo "sudo snap connect ${SNAP_NAME}:${if_name}"
+        disconnected_ifs="$disconnected_ifs ${if_name}"
     fi
 done
 
 if [ $all_if_connected = false ]; then
+    snapctl set-health blocked "These interfaces are not connected:${disconnected_ifs}"
+    snapctl stop mediatek-genio-supports.mdpd --disable
+    snapctl stop mediatek-genio-supports.vpud --disable
     exit 0
 fi
+snapctl set-health okay
+
+cd "$SNAP"
 
 if python3 -m mediatek-genio-supports mdpd --check; then
     snapctl start mediatek-genio-supports.mdpd --enable

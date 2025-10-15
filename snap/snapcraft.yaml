@@ -20,6 +20,9 @@ platforms:
       - arm64
     build-for:
       - arm64
+plugs: 
+  mediatek-accel:
+    units: [ vcu, apu ]
 
 apps:
   mdpd:
@@ -83,6 +86,15 @@ parts:
       snapcraftctl build
       cp -a ${CRAFT_PART_SRC} ${CRAFT_PART_INSTALL}/mediatek-genio-supports
 
-hooks:
-  configure: {}
-  
+hooks: 
+  configure:
+    plugs: [hardware-observe]
+  connect-plug-hardware-observe:
+    plugs: [hardware-observe]
+  connect-plug-mediatek-accel:
+    plugs: [hardware-observe]
+  connect-plug-process-control:
+    plugs: [hardware-observe]
+  disconnect-plug-hardware-observe: {}
+  disconnect-plug-mediatek-accel: {}
+  disconnect-plug-process-control: {}

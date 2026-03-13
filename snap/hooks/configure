@@ -11,7 +11,7 @@ all_if_connected=true
 for if_name in $interfaces; do
     if ! snapctl is-connected $if_name; then
         if [ $all_if_connected = true ]; then
-            echo "Please run this command to connect interfaces:"
+            echo "Please connect these interfaces:"
             all_if_connected=false
         fi
         echo "sudo snap connect ${SNAP_NAME}:${if_name}"
@@ -20,7 +20,7 @@ for if_name in $interfaces; do
 done
 
 if [ $all_if_connected = false ]; then
-    snapctl set-health blocked "These interfaces are not connected:${disconnected_ifs}"
+    snapctl set-health blocked "Required interfaces are not connected:${disconnected_ifs}"
     snapctl stop mediatek-genio-supports.mdpd --disable
     snapctl stop mediatek-genio-supports.vpud --disable
     exit 0
@@ -29,13 +29,13 @@ snapctl set-health okay
 
 cd "$SNAP"
 
-if python3 -m mediatek-genio-supports mdpd --check; then
+if python3 -m mediatek-genio-supports --check mdpd; then
     snapctl start mediatek-genio-supports.mdpd --enable
 else
     snapctl stop mediatek-genio-supports.mdpd --disable
 fi
 
-if python3 -m mediatek-genio-supports vpud --check; then
+if python3 -m mediatek-genio-supports --check vpud; then
     snapctl start mediatek-genio-supports.vpud --enable
 else
     snapctl stop mediatek-genio-supports.vpud --disable

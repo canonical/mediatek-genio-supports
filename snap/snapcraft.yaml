@@ -1,6 +1,6 @@
 name: mediatek-genio-supports
 title: Supported Services for MediaTek Genio
-version: 24.04~0ea1
+version: 24.04~1beta1
 license: GPL-3.0+
 summary: Supported services for MediaTek Genio devices
 description: |
@@ -22,7 +22,7 @@ platforms:
       - arm64
 plugs: 
   mediatek-accel:
-    units: [ vcu, apu ]
+    units: [ vcu ]
 
 apps:
   mdpd:
@@ -70,9 +70,9 @@ parts:
     plugin: dump
     source: https://gitlab.com/mediatek/aiot/rity/vpud.git
     source-type: git
-    source-tag: 0.25.0.0+d5749a4
+    source-tag: 0.25.1.0+034f053
     override-build: |
-      for d in mt8365 mt8188 mt8395; do
+      for d in mt8365 mt8188 mt8391 mt8395; do
         install -Dm644 -t ${CRAFT_PART_INSTALL}/lib/${d}/ ${CRAFT_PART_SRC}/${d}/aarch64/libvpud_vcodec.so
         install -Dm755 -t ${CRAFT_PART_INSTALL}/bin/${d}/ ${CRAFT_PART_SRC}/${d}/aarch64/vpud
       done
@@ -81,10 +81,10 @@ parts:
 
   project:
     plugin: python
-    source: src
+    source: .
     override-build: |
       snapcraftctl build
-      cp -a ${CRAFT_PART_SRC} ${CRAFT_PART_INSTALL}/mediatek-genio-supports
+      cp -a ${CRAFT_PART_SRC}/mediatek-genio-supports ${CRAFT_PART_INSTALL}/
 
 hooks: 
   configure:

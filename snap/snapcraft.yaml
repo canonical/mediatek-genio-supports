@@ -1,6 +1,6 @@
 name: mediatek-genio-supports
 title: Supported Services for MediaTek Genio
-version: 24.04~1beta1
+version: 24.04~1beta1.2
 license: GPL-3.0+
 summary: Supported services for MediaTek Genio devices
 description: |
@@ -11,7 +11,7 @@ base: core24
 grade: devel
 confinement: strict
 source-code:
-  - https://github.com/canonical/mediatek-genio-supports
+  - https://git.launchpad.net/~baoshan-team/baoshan/+git/mediatek-genio-supports
 
 platforms:
   arm64:
@@ -23,6 +23,28 @@ platforms:
 plugs: 
   mediatek-accel:
     units: [ vcu ]
+
+components:
+  mdpd-mt8365:
+    type: standard
+    summary: Media Data Path Daemon for mt8365
+    description: Media Data Path Daemon (MDPD) service and prebuilts for MediaTek Genio mt8365.
+  vpud-mt8365:
+    type: standard
+    summary: Video Processing Unit Daemon for mt8365
+    description: Video Processing Unit Daemon (VPUD) service and prebuilts for MediaTek Genio mt8365.
+  vpud-mt8188:
+    type: standard
+    summary: Video Processing Unit Daemon for mt8188
+    description: Video Processing Unit Daemon (VPUD) service and prebuilts for MediaTek Genio mt8188.
+  vpud-mt8391:
+    type: standard
+    summary: Video Processing Unit Daemon for mt8391
+    description: Video Processing Unit Daemon (VPUD) service and prebuilts for MediaTek Genio mt8391.
+  vpud-mt8395:
+    type: standard
+    summary: Video Processing Unit Daemon for mt8395
+    description: Video Processing Unit Daemon (VPUD) service and prebuilts for MediaTek Genio mt8395.
 
 apps:
   mdpd:
@@ -56,16 +78,15 @@ parts:
     source-type: git
     source-tag: 0.25.0.0+f1d1029
     override-build: |
-      install -Dm644 -t ${CRAFT_PART_INSTALL}/lib/mt8365/ \
+      install -Dm644 -t ${CRAFT_PART_INSTALL}/mdpd-mt8365/lib/ \
               ${CRAFT_PART_SRC}/mdpd/mt8365/libmdpd.so \
               ${CRAFT_PART_SRC}/mdpd/mt8365/libmdp.mt8365.so \
-              ${CRAFT_PART_SRC}/libmdp-prot/libmdp_prot.mt8365.so
-      install -Dm644 -t ${CRAFT_PART_INSTALL}/lib/ \
+              ${CRAFT_PART_SRC}/libmdp-prot/libmdp_prot.mt8365.so \
               ${CRAFT_PART_SRC}/libmdppq/libmdppq.so
-      install -Dm755 -t ${CRAFT_PART_INSTALL}/bin/ \
+      install -Dm755 -t ${CRAFT_PART_INSTALL}/mdpd-mt8365/bin/ \
               ${CRAFT_PART_SRC}/mdpd/mt8365/mdpd
     organize:
-      "*": mdpd/
+      mdpd-mt8365: (component/mdpd-mt8365)
   vpud:
     plugin: dump
     source: https://gitlab.com/mediatek/aiot/rity/vpud.git
@@ -73,17 +94,20 @@ parts:
     source-tag: 0.25.1.0+034f053
     override-build: |
       for d in mt8365 mt8188 mt8391 mt8395; do
-        install -Dm644 -t ${CRAFT_PART_INSTALL}/lib/${d}/ ${CRAFT_PART_SRC}/${d}/aarch64/libvpud_vcodec.so
-        install -Dm755 -t ${CRAFT_PART_INSTALL}/bin/${d}/ ${CRAFT_PART_SRC}/${d}/aarch64/vpud
+        install -Dm644 -t ${CRAFT_PART_INSTALL}/${d}/lib/ ${CRAFT_PART_SRC}/${d}/aarch64/libvpud_vcodec.so
+        install -Dm755 -t ${CRAFT_PART_INSTALL}/${d}/bin/ ${CRAFT_PART_SRC}/${d}/aarch64/vpud
       done
     organize:
-      "*": vpud/
+      mt8365: (component/vpud-mt8365)
+      mt8188: (component/vpud-mt8188)
+      mt8391: (component/vpud-mt8391)
+      mt8395: (component/vpud-mt8395)
 
   project:
     plugin: python
     source: .
     override-build: |
-      snapcraftctl build
+      craftctl default
       cp -a ${CRAFT_PART_SRC}/mediatek-genio-supports ${CRAFT_PART_INSTALL}/
 
 hooks: 

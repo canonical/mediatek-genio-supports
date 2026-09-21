@@ -16,10 +16,11 @@
 import argparse
 import sys
 import os
+import subprocess
 from typing import List
 from pathlib import Path
 
-SNAP_NAME = os.environ["SNAP_NAME"]
+SNAP_NAME = os.environ.get("SNAP_NAME", "mediatek-genio-supports")
 
 ALL_DAEMONS = {
     "mdpd": ["mt8365"],
@@ -54,42 +55,81 @@ def detect_hardware(candidates: List[str]):
 def print_hardware():
     print(hardware_list())
 
-def check_daemon(name):
+
+def get_component_name(daemon_name: str, hw: str) -> str:
+    return f"{daemon_name}-{hw}"
+
+
+def get_component_path(component_name: str) -> Path:
+    # Under snap runtime, components are mounted at:
+    # /snap/<snap_name>/components/<snap_revision>/<component_name>
+    snap_path = Path(os.environ.get("SNAP", ""))
+    rev = snap_path.name
+    comp_path = snap_path.parent / "components" / rev / component_name
+    return comp_path
+
+
+def check_daemon(name: str):
     hw = detect_hardware(ALL_DAEMONS[name])
     if hw is None:
         sys.exit(1)
-    else:
-        sys.exit(0)
 
-def run_daemon(name):
+    comp_name = get_component_name(name, hw)
+    comp_path = get_component_path(comp_name)
+    if not comp_path.is_dir():
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+def ensure_components():
+    """Detect current hardware and install required components via snapctl install."""
+    installed_any = False
+    for daemon_name, candidates in ALL_DAEMONS.items():
+        hw = detect_hardware(candidates)
+        if hw is not None:
+            comp_name = get_component_name(daemon_name, hw)
+            comp_path = get_component_path(comp_name)
+            if not comp_path.is_dir():
+                print(f"Installing component: +{comp_name}")
+                subprocess.run(["snapctl", "install", f"+{comp_name}"], check=True)
+                installed_any = True
+            else:
+                print(f"Component +{comp_name} already installed")
+    return installed_any
+
+
+def run_daemon(name: str):
     hw = detect_hardware(ALL_DAEMONS[name])
 
     if hw is None:
         print("This daemon is not applicable for this device", file=sys.stderr)
         sys.exit(1)
 
-    base_path = Path(os.environ["SNAP"])
+    comp_name = get_component_name(name, hw)
+    comp_path = get_component_path(comp_name)
+
+    if not comp_path.is_dir():
+        print(
+            f"Component {comp_name} is not installed for {name} daemon. Path searched: {comp_path}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     ld_library_path = [
-        base_path / name / "lib",
-        base_path / name / "lib" / hw,
+        comp_path / "lib",
     ]
     if "LD_LIBRARY_PATH" in os.environ:
         ld_library_path.extend(os.environ["LD_LIBRARY_PATH"].split(":"))
 
     path = [
-        base_path / name / "bin",
-        base_path / name / "bin" / hw,
+        comp_path / "bin",
     ]
 
-    entry_path = None
-    for p in path:
-        entry_path = p.joinpath(name)
-        if entry_path.is_file():
-            entry_path = entry_path
-            break
-    else:
+    entry_path = (comp_path / "bin" / name)
+    if not entry_path.is_file():
         raise RuntimeError(
-            f"No entry path found for {name} daemon. Path searched: \n{"\n".join([str(p) for p in path])}"
+            f"No entry path found for {name} daemon. Path searched: {entry_path}"
         )
 
     if "PATH" in os.environ:
@@ -100,24 +140,40 @@ def run_daemon(name):
     new_env["PATH"] = ":".join([str(p) for p in path])
     os.execve(entry_path, [name], new_env)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Check if this daemon is applicable on this device and exit.",
+        help="Check if this daemon is applicable and its component is installed on this device and exit.",
     )
-    parser.add_argument("daemon", choices=list(ALL_DAEMONS.keys()), nargs=1, help="The daemon to run.")
-    
+    parser.add_argument(
+        "--ensure-components",
+        action="store_true",
+        help="Detect hardware and install required components via snapctl.",
+    )
+    parser.add_argument("daemon", choices=list(ALL_DAEMONS.keys()), nargs="?", help="The daemon to run.")
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    if args.check:
-        check_daemon(args.daemon[0])
+    if args.ensure_components:
+        ensure_components()
         return
-    run_daemon(args.daemon[0])
+
+    if not args.daemon:
+        print("Error: daemon argument is required unless --ensure-components is given", file=sys.stderr)
+        sys.exit(1)
+
+    if args.check:
+        check_daemon(args.daemon)
+        return
+
+    run_daemon(args.daemon)
 
 
-main()
+if __name__ == "__main__":
+    main()

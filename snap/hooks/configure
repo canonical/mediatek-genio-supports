@@ -29,6 +29,9 @@ snapctl set-health okay
 
 cd "$SNAP"
 
+# Install hardware-matching components if not already installed
+python3 -m mediatek-genio-supports --ensure-components
+
 if python3 -m mediatek-genio-supports --check mdpd; then
     snapctl start mediatek-genio-supports.mdpd --enable
 else

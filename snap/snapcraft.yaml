@@ -110,15 +110,19 @@ parts:
       craftctl default
       cp -a ${CRAFT_PART_SRC}/mediatek-genio-supports ${CRAFT_PART_INSTALL}/
 
-hooks: 
+hooks:
+  install:
+    plugs:
+      - hardware-observe
   configure:
-    plugs: [hardware-observe]
+    plugs:
+      - hardware-observe
   connect-plug-hardware-observe:
-    plugs: [hardware-observe]
+    plugs:
+      - hardware-observe
   connect-plug-mediatek-accel:
-    plugs: [hardware-observe]
+    plugs:
+      - hardware-observe
   connect-plug-process-control:
-    plugs: [hardware-observe]
-  disconnect-plug-hardware-observe: {}
-  disconnect-plug-mediatek-accel: {}
-  disconnect-plug-process-control: {}
+    plugs:
+      - hardware-observe
